@@ -1,94 +1,8 @@
-use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
-
+use crate::error::{NodeError, Result};
+use crate::node::NextNode;
+use crate::node::{Node, NodeValue};
 use log::debug;
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum NodeError {
-    #[error("Invalid index: {0}")]
-    InvalidIndex(usize),
-    #[error("Generic error: {0}")]
-    Generic(String),
-}
-
-#[derive(Debug, Clone)]
-pub enum DynValue {
-    Int(i32),
-    Float(f32),
-    Bool(bool),
-    Char(char),
-    UInt(u32),
-    Double(f64),
-    USize(usize),
-    Str(String),
-    List(Vec<DynValue>),
-    Bytes(Vec<u8>),
-}
-
-#[derive(Debug, Clone)]
-pub enum NodeValue {
-    Void,
-    Value(DynValue),
-    Any(Arc<Box<dyn std::any::Any + Send + Sync>>),
-}
-
-pub type Result<T> = std::result::Result<T, NodeError>;
-
-pub enum Task {
-    Trivial(fn(NodeValue) -> NodeValue),
-    Generic(fn(NodeValue) -> Result<NodeValue>),
-    Async(
-        Box<
-            dyn Fn(NodeValue) -> Pin<Box<dyn Future<Output = Result<NodeValue>> + Send>>
-                + Send
-                + Sync,
-        >,
-    ),
-    TrivialDecider(fn(NodeValue, NextNode) -> (NodeValue, NextNode)),
-    GenericDecider(fn(NodeValue, NextNode) -> Result<(NodeValue, NextNode)>),
-    AsyncDecider(
-        Box<
-            dyn Fn(
-                    NodeValue,
-                    NextNode,
-                )
-                    -> Pin<Box<dyn Future<Output = Result<(NodeValue, NextNode)>> + Send>>
-                + Send
-                + Sync,
-        >,
-    ),
-}
-
-impl std::fmt::Debug for Task {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Task::Trivial(_) => write!(f, "Task::Trivial"),
-            Task::Generic(_) => write!(f, "Task::Generic"),
-            Task::Async(_) => write!(f, "Task::Async"),
-            Task::TrivialDecider(_) => write!(f, "Task::TrivialDecider"),
-            Task::GenericDecider(_) => write!(f, "Task::GenericDecider"),
-            Task::AsyncDecider(_) => write!(f, "Task::AsyncDecider"),
-        }
-    }
-}
-
-impl Task {
-    pub fn from_async_fn<F, Fut>(f: F) -> Self
-    where
-        F: Fn(NodeValue) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = Result<NodeValue>> + Send + 'static,
-    {
-        Task::Async(Box::new(move |arg| Box::pin(f(arg))))
-    }
-
-    pub fn from_async_decider_fn<F, Fut>(f: F) -> Self
-    where
-        F: Fn(NodeValue, NextNode) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = Result<(NodeValue, NextNode)>> + Send + 'static,
-    {
-        Task::AsyncDecider(Box::new(move |arg, next| Box::pin(f(arg, next))))
-    }
-}
+use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum WorkflowState {
@@ -171,50 +85,10 @@ impl Workflow {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum NextNode {
-    Single(usize),
-    Multiple(Vec<usize>),
-    None,
-}
-
-#[derive(Debug)]
-pub struct Node {
-    task: Task,
-    pub next: NextNode,
-}
-
-impl Node {
-    pub fn new(task: Task, next: NextNode) -> Self {
-        Self { task, next }
-    }
-
-    pub async fn run(self: &mut Self, prev_result: NodeValue) -> Result<NodeValue> {
-        match &self.task {
-            Task::Trivial(f) => Ok(f(prev_result)),
-            Task::Generic(f) => f(prev_result),
-            Task::Async(f) => f(prev_result).await,
-            Task::TrivialDecider(f) => {
-                let (result, next) = f(prev_result, self.next.clone());
-                self.next = next;
-                Ok(result)
-            }
-            Task::GenericDecider(f) => {
-                let (result, next) = f(prev_result, self.next.clone())?;
-                self.next = next;
-                Ok(result)
-            }
-            Task::AsyncDecider(f) => {
-                let (result, next) = f(prev_result, self.next.clone()).await?;
-                self.next = next;
-                Ok(result)
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::{node::DynValue, task::Task};
+
     use super::*;
 
     #[test]
