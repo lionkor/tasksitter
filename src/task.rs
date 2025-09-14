@@ -73,16 +73,16 @@ pub enum Task {
 impl std::fmt::Debug for Task {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Task::Trivial(_) => write!(f, "Task::Trivial"),
-            Task::Generic(_) => write!(f, "Task::Generic"),
-            Task::Async(_) => write!(f, "Task::Async"),
-            Task::TrivialDecider(_) => write!(f, "Task::TrivialDecider"),
-            Task::GenericDecider(_) => write!(f, "Task::GenericDecider"),
-            Task::AsyncDecider(_) => write!(f, "Task::AsyncDecider"),
-            Task::Custom(_) => write!(f, "Task::Custom"),
-            Task::CustomDecider(_) => write!(f, "Task::CustomDecider"),
-            Task::AsyncCustom(_) => write!(f, "Task::AsyncCustom"),
-            Task::AsyncCustomDecider(_) => write!(f, "Task::AsyncCustomDecider"),
+            Task::Trivial(fptr) => write!(f, "Task::Trivial({:p})", *fptr as *const ()),
+            Task::Generic(fptr) => write!(f, "Task::Generic({:p})", *fptr as *const ()),
+            Task::Async(fptr) => write!(f, "Task::Async({:p})", &**fptr as *const _),
+            Task::TrivialDecider(fptr) => write!(f, "Task::TrivialDecider({:p})", *fptr as *const ()),
+            Task::GenericDecider(fptr) => write!(f, "Task::GenericDecider({:p})", *fptr as *const ()),
+            Task::AsyncDecider(fptr) => write!(f, "Task::AsyncDecider({:p})", &**fptr as *const _),
+            Task::Custom(ptr) => write!(f, "Task::Custom({:p})", &**ptr as *const _),
+            Task::CustomDecider(ptr) => write!(f, "Task::CustomDecider({:p})", &**ptr as *const _),
+            Task::AsyncCustom(ptr) => write!(f, "Task::AsyncCustom({:p})", &**ptr as *const _),
+            Task::AsyncCustomDecider(ptr) => write!(f, "Task::AsyncCustomDecider({:p})", &**ptr as *const _),
         }
     }
 }
