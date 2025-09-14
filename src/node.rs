@@ -26,6 +26,8 @@ pub struct Node {
     /// as the [next nodes(s)](Node::next). The actual nodes to be executed are determined by the
     /// [decider tasks](crate::task::Task::TrivialDecider) in [Node::run], if any.
     ///
+    /// If a node has multiple successors and it's task is not a decider, all successors will be executed.
+    ///
     /// The successors are fixed when the graph is constructed, while the [next nodes](Node::next) may change
     /// during execution.
     pub successors: NextNode,

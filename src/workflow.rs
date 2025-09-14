@@ -13,12 +13,15 @@ pub enum WorkflowState {
 
 /// Represents a board full of [Node]s, connected by edges, to form a (potentially cyclical) graph.
 /// Each node contains a task, which can be executed.
+///
+/// Add a node via [add_node](Workflow::add_node), and then run the workflow by repeatedly calling
+/// [run_next](Workflow::run_next) until it returns [WorkflowState::Completed].
 #[derive(Debug)]
 pub struct Workflow {
     nodes: Vec<Node>,
     running: Vec<usize>,
     next_nodes: Vec<usize>,
-    start: usize,
+    pub start: usize,
     state: WorkflowState,
     next_args: HashMap<usize /* to */, NodeValue>,
     pub results: HashMap<usize /* from */, NodeValue>,
@@ -40,7 +43,16 @@ impl Workflow {
 
     /// Adds a node to the workflow, returning its index.
     ///
-    /// These indices are used for [NextNode] references.
+    /// These indices are used for [NextNode] references. In order for a
+    /// [decider task](crate::task::Task::TrivialDecider) to determine which node to
+    /// execute next, it must select from the set of successor nodes, which are
+    /// fixed indices. The index returned by this method is that index.
+    ///
+    /// They are in order of insertion, and are guaranteed to be contiguous from 0 to n-1,
+    /// where n is the number of nodes in the workflow.
+    ///
+    /// Special index `0` is the default starting node, but this can be changed by setting
+    /// [start](Workflow::start) to another valid index.
     pub fn add_node(&mut self, node: Node) -> usize {
         self.nodes.push(node);
         self.nodes.len() - 1
