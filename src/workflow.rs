@@ -11,6 +11,8 @@ pub enum WorkflowState {
     NotStarted,
 }
 
+/// Represents a board full of [Node]s, connected by edges, to form a (potentially cyclical) graph.
+/// Each node contains a task, which can be executed.
 #[derive(Debug)]
 pub struct Workflow {
     nodes: Vec<Node>,
@@ -19,10 +21,11 @@ pub struct Workflow {
     start: usize,
     state: WorkflowState,
     next_args: HashMap<usize /* to */, NodeValue>,
-    results: HashMap<usize /* from */, NodeValue>,
+    pub results: HashMap<usize /* from */, NodeValue>,
 }
 
 impl Workflow {
+    /// Constructs a new, empty workflow.
     pub fn new() -> Self {
         Self {
             nodes: Vec::new(),
@@ -35,11 +38,20 @@ impl Workflow {
         }
     }
 
+    /// Adds a node to the workflow, returning its index.
+    ///
+    /// These indices are used for [NextNode] references.
     pub fn add_node(&mut self, node: Node) -> usize {
         self.nodes.push(node);
         self.nodes.len() - 1
     }
 
+    /// Runs the next set of nodes in the workflow. If the workflow has not yet started,
+    /// it will start with the node at index `start` (default 0).
+    /// If the workflow is already running, it will run the next set of nodes
+    /// determined by the previous run.
+    /// If the workflow has completed, it will return `WorkflowState::Completed`, and the
+    /// results of all terminating nodes can be found in [results](Workflow::results).
     pub async fn run_next(&mut self) -> Result<WorkflowState> {
         if self.state == WorkflowState::NotStarted {
             self.running.push(self.start);
@@ -87,7 +99,7 @@ impl Workflow {
 
 #[cfg(test)]
 mod tests {
-    use crate::{node::DynValue, task::Task};
+    use crate::{node::DynValue, task::{AsyncRunnableDecider, Task}};
 
     use super::*;
 
@@ -266,5 +278,99 @@ mod tests {
         let state = workflow.run_next().await.unwrap();
         assert_eq!(state, WorkflowState::Running);
         assert_eq!(workflow.running, vec![idx1]);
+    }
+
+    struct MyAsyncDecider;
+
+    #[async_trait::async_trait]
+    impl AsyncRunnableDecider for MyAsyncDecider {
+        async fn run(
+            &mut self,
+            input: crate::node::NodeValue,
+            _next: crate::node::NextNode,
+        ) -> crate::error::Result<(crate::node::NodeValue, crate::node::NextNode)> {
+            use crate::node::{NodeValue, NextNode};
+            use crate::node::DynValue;
+
+            // If input is Int(7), go to node 1, else to node 2
+            match input {
+                NodeValue::Value(DynValue::Int(7)) => Ok((
+                    NodeValue::Value(DynValue::Int(1000)),
+                    NextNode::Single(1),
+                )),
+                _ => Ok((
+                    NodeValue::Value(DynValue::Int(2000)),
+                    NextNode::Single(2),
+                )),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_run_custom_async_decider_node() {
+        use crate::task::Task;
+
+        let mut workflow = Workflow::new();
+
+        // Node 0: custom async decider
+        let decider = MyAsyncDecider;
+        let node0 = Node::new(
+            Task::AsyncCustomDecider(Box::new(decider)),
+            NextNode::Single(1),
+        );
+        let idx0 = workflow.add_node(node0);
+
+        // Node 1: trivial, returns 1000
+        let node1 = Node::new(
+            Task::Trivial(|_| NodeValue::Value(DynValue::Int(1000))),
+            NextNode::None,
+        );
+        let idx1 = workflow.add_node(node1);
+
+        // Node 2: trivial, returns 2000
+        let node2 = Node::new(
+            Task::Trivial(|_| NodeValue::Value(DynValue::Int(2000))),
+            NextNode::None,
+        );
+        let _idx2 = workflow.add_node(node2);
+
+        workflow.start = idx0;
+
+        // Provide input to decider node: Int(7) should go to node 1
+        workflow
+            .next_args
+            .insert(idx0, NodeValue::Value(DynValue::Int(7)));
+
+        let state = workflow.run_next().await.unwrap();
+        assert_eq!(state, WorkflowState::Running);
+        assert_eq!(workflow.running, vec![idx1]);
+
+        // Now try with input that should go to node 2
+        let mut workflow = Workflow::new();
+        let decider = MyAsyncDecider;
+        let node0 = Node::new(
+            Task::AsyncCustomDecider(Box::new(decider)),
+            NextNode::Single(1),
+        );
+        let idx0 = workflow.add_node(node0);
+        let node1 = Node::new(
+            Task::Trivial(|_| NodeValue::Value(DynValue::Int(1000))),
+            NextNode::None,
+        );
+        let _idx1 = workflow.add_node(node1);
+        let node2 = Node::new(
+            Task::Trivial(|_| NodeValue::Value(DynValue::Int(2000))),
+            NextNode::None,
+        );
+        let idx2 = workflow.add_node(node2);
+
+        workflow.start = idx0;
+        workflow
+            .next_args
+            .insert(idx0, NodeValue::Value(DynValue::Int(3)));
+
+        let state = workflow.run_next().await.unwrap();
+        assert_eq!(state, WorkflowState::Running);
+        assert_eq!(workflow.running, vec![idx2]);
     }
 }
