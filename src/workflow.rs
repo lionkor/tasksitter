@@ -68,8 +68,7 @@ impl Workflow {
         for i in &self.running {
             let arg = self.next_args.remove(i).unwrap_or(NodeValue::Void);
             let node = &mut self.nodes.get_mut(*i).ok_or(NodeError::InvalidIndex(*i))?;
-            // TODO: propagate this error with a node ID or similar
-            let res = node.run(arg).await?;
+            let res = node.run(arg).await.map_err(|e| NodeError::GenericInNode(*i, Box::new(e)))?;
             match &node.next {
                 NextNode::Single(i) => {
                     self.next_args.insert(*i, res);

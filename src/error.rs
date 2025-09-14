@@ -6,5 +6,7 @@ pub enum NodeError {
     InvalidIndex(usize),
     #[error("Generic error: {0}")]
     Generic(String),
+    #[error("Error in Node {0}: {1}")]
+    GenericInNode(usize, Box<NodeError>),
 }
 pub type Result<T> = std::result::Result<T, NodeError>;
