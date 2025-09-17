@@ -168,7 +168,7 @@ dependencies = [
 
 [[package]]
 name = "tasksitter"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "async-trait",
  "log",
