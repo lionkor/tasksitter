@@ -1,7 +1,10 @@
 [package]
-name = "graph-flows"
+name = "tasksitter"
 version = "0.1.0"
 edition = "2024"
+authors = ["Lion Kortlepel <development@kortlepel.com>"]
+description = "A workflow runner engine"
+license = "MIT"
 
 [dependencies]
 thiserror = "2.0.16"

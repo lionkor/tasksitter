@@ -62,16 +62,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 
 [[package]]
-name = "graph-flows"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "log",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "io-uring"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -174,6 +164,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "tasksitter"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "log",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
