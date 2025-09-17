@@ -1,4 +1,4 @@
-# graph-flows
+# tasksitter 
 
 Graph-based workflow engine for Rust. Model, execute, and control arbitrary task graphs (DAGs or cyclic) with async/sync nodes and dynamic routing.
 
