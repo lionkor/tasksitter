@@ -5,6 +5,7 @@ edition = "2024"
 authors = ["Lion Kortlepel <development@kortlepel.com>"]
 description = "A workflow runner engine"
 license = "MIT"
+repository = "https://github.com/lionkor/tasksitter"
 
 [dependencies]
 thiserror = "2.0.16"
