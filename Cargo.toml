@@ -1,6 +1,6 @@
 [package]
 name = "tasksitter"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2024"
 authors = ["Lion Kortlepel <development@kortlepel.com>"]
 description = "A workflow runner engine"
